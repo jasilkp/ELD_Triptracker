@@ -1,6 +1,8 @@
 # ELD Trip Planner
 
-Full-stack trip planning app for truck drivers with HOS-compliant ELD log generation.
+Personal full-stack trip planning app for truck drivers with HOS-compliant ELD log generation.
+
+This repository contains the source for the app I built end to end, including the Django API, React frontend, route planning, and daily log generation.
 
 ## Backend (Django)
 
