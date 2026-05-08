@@ -1,0 +1,7 @@
+"$schema" = "https://railway.com/railway.schema.json"
+
+[build]
+builder = "dockerfile"
+
+[deploy]
+startCommand = "python manage.py migrate && gunicorn eldtrip.wsgi:application --bind 0.0.0.0:$PORT"
