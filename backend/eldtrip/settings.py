@@ -9,8 +9,28 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Require SECRET_KEY to be set explicitly — no insecure fallback in production
-SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
+try:
+    SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
+except KeyError as e:
+    raise RuntimeError(
+        "Missing required environment variable: DJANGO_SECRET_KEY. "
+        "Set this value in your Render/host environment variables."
+    ) from e
+
 DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
+
+# If running in production, ensure critical variables are present so startup fails fast with clear messages
+if not DEBUG:
+    _missing = []
+    if not os.getenv("DATABASE_URL"):
+        _missing.append("DATABASE_URL")
+    if not os.getenv("DJANGO_ALLOWED_HOSTS"):
+        _missing.append("DJANGO_ALLOWED_HOSTS")
+    if _missing:
+        raise RuntimeError(
+            "Missing required environment variables for production: " + ", ".join(_missing) +
+            ". Please set them in your Render/host environment."
+        )
 
 allowed_hosts = os.getenv("DJANGO_ALLOWED_HOSTS", "")
 ALLOWED_HOSTS = [h.strip() for h in allowed_hosts.split(",") if h.strip()]
