@@ -48,7 +48,7 @@ export default function App() {
     setHistoryLoading(true);
     setHistoryError("");
     try {
-      const response = await axios.get(`${API_BASE}/api/trip/history/?limit=6`, { timeout: 10000 });
+      const response = await axios.get(`${API_BASE}/api/history/?limit=6`, { timeout: 10000 });
       setRecentTrips(response.data?.results || []);
     } catch {
       setHistoryError("Could not load recent trips.");
@@ -73,7 +73,7 @@ export default function App() {
       await new Promise(r => setTimeout(r, stepDuration));
       
       setPlanningStep(2);
-      const response = await axios.post(`${API_BASE}/api/trip/plan/`, payload, { timeout: 30000 });
+      const response = await axios.post(`${API_BASE}/api/plan/`, payload, { timeout: 30000 });
       
       setPlanningStep(3);
       await new Promise(r => setTimeout(r, stepDuration));
