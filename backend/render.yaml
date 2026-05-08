@@ -10,7 +10,7 @@ services:
     runtime: python
     rootDir: backend
     buildCommand: pip install -r backend/requirements.txt
-    startCommand: python manage.py collectstatic --noinput && python manage.py migrate && gunicorn eldtrip.wsgi:application --bind 0.0.0.0:$PORT
+    startCommand: cd backend && python manage.py collectstatic --noinput && python manage.py migrate && gunicorn eldtrip.wsgi:application --bind 0.0.0.0:$PORT
     plan: free
     envVars:
       - key: DATABASE_URL
