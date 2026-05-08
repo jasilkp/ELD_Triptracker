@@ -9,7 +9,7 @@ services:
     name: eldtrip-backend
     runtime: python
     rootDir: backend
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r backend/requirements.txt
     startCommand: python manage.py collectstatic --noinput && python manage.py migrate && gunicorn eldtrip.wsgi:application --bind 0.0.0.0:$PORT
     plan: free
     envVars:
@@ -22,7 +22,7 @@ services:
       - key: DJANGO_DEBUG
         value: "0"
       - key: DJANGO_ALLOWED_HOSTS
-        sync: false   # you will fill this in with your Render subdomain after first deploy
+        value: "eldtrip-backend.onrender.com,localhost,127.0.0.1"
       - key: OPENROUTESERVICE_API_KEY
         sync: false   # paste your ORS key in the Render dashboard
       - key: CORS_ALLOWED_ORIGINS
