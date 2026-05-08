@@ -8,8 +8,7 @@ services:
   - type: web
     name: eldtrip-backend
     runtime: python
-    rootDir: backend
-    buildCommand: pip install -r backend/requirements.txt
+    buildCommand: cd backend && pip install -r requirements.txt
     startCommand: cd backend && python manage.py collectstatic --noinput && python manage.py migrate && gunicorn eldtrip.wsgi:application --bind 0.0.0.0:$PORT
     plan: free
     envVars:
