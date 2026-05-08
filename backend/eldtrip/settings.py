@@ -34,6 +34,10 @@ if not DEBUG:
 
 allowed_hosts = os.getenv("DJANGO_ALLOWED_HOSTS", "")
 ALLOWED_HOSTS = [h.strip() for h in allowed_hosts.split(",") if h.strip()]
+if not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = [".onrender.com", "localhost", "127.0.0.1"]
+elif not any(host == ".onrender.com" or host.endswith(".onrender.com") for host in ALLOWED_HOSTS):
+    ALLOWED_HOSTS.append(".onrender.com")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
