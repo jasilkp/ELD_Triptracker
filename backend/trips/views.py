@@ -49,15 +49,18 @@ class TripPlanView(APIView):
             "route": plan["route"],
         }
 
-        TripHistory.objects.create(
-            current_location=payload["current_location"],
-            pickup_location=payload["pickup_location"],
-            dropoff_location=payload["dropoff_location"],
-            driver_name=payload.get("driver_name", ""),
-            total_distance_miles=route["total_distance_miles"],
-            total_duration_hours=route["total_duration_hours"],
-            stops_count=len(plan["stops"]),
-        )
+        try:
+            TripHistory.objects.create(
+                current_location=payload["current_location"],
+                pickup_location=payload["pickup_location"],
+                dropoff_location=payload["dropoff_location"],
+                driver_name=payload.get("driver_name", ""),
+                total_distance_miles=route["total_distance_miles"],
+                total_duration_hours=route["total_duration_hours"],
+                stops_count=len(plan["stops"]),
+            )
+        except Exception:
+            pass
 
         return Response(response, status=status.HTTP_200_OK)
 

@@ -22,8 +22,6 @@ DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
 # If running in production, ensure critical variables are present so startup fails fast with clear messages
 if not DEBUG:
     _missing = []
-    if not os.getenv("DATABASE_URL"):
-        _missing.append("DATABASE_URL")
     if not os.getenv("DJANGO_ALLOWED_HOSTS"):
         _missing.append("DJANGO_ALLOWED_HOSTS")
     if _missing:
