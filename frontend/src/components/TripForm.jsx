@@ -68,7 +68,7 @@ export default function TripForm({ onSubmit, loading }) {
       const controller = new AbortController();
       controllersRef.current[field] = controller;
       try {
-        const response = await axios.get(`${API_BASE}/api/suggest/`, {
+        const response = await axios.get(`${API_BASE}/api/trip/suggest/`, {
           params: { q: trimmed },
           signal: controller.signal,
         });
