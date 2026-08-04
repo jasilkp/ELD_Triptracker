@@ -20,12 +20,16 @@ def geocode_location(location_text: str) -> Dict[str, float | str]:
     api_key = _get_api_key()
     url = f"{ORS_BASE_URL}/geocode/search"
     params = {"api_key": api_key, "text": location_text}
-    response = requests.get(url, params=params, timeout=10)
-    response.raise_for_status()
-    payload = response.json()
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        payload = response.json()
+    except requests.RequestException:
+        raise ValueError(f"Location lookup failed for '{location_text}'. Please check spelling or select from suggestions.")
+    
     features = payload.get("features", [])
     if not features:
-        raise ValueError(f"No geocoding results for '{location_text}'")
+        raise ValueError(f"Location '{location_text}' could not be found. Please verify spelling.")
     feature = features[0]
     coords = feature["geometry"]["coordinates"]
     label = feature.get("properties", {}).get("label", location_text)
@@ -37,9 +41,13 @@ def geocode_suggestions(query: str, size: int = 5) -> List[str]:
     labels: List[str] = []
     url = f"{ORS_BASE_URL}/geocode/search"
     params = {"api_key": api_key, "text": query, "size": size}
-    response = requests.get(url, params=params, timeout=10)
-    response.raise_for_status()
-    payload = response.json()
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        payload = response.json()
+    except requests.RequestException:
+        return []
+    
     features = payload.get("features", [])
     for feature in features:
         label = feature.get("properties", {}).get("label")
@@ -63,9 +71,24 @@ def build_route(current_location: str, pickup_location: str, dropoff_location: s
         ],
         "units": "mi",
     }
-    response = requests.post(url, params={"api_key": api_key}, json=payload, timeout=30)
-    response.raise_for_status()
-    data = response.json()
+    try:
+        response = requests.post(url, params={"api_key": api_key}, json=payload, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+    except requests.RequestException as exc:
+        err_msg = ""
+        if hasattr(exc, "response") and exc.response is not None:
+            try:
+                err_data = exc.response.json()
+                err_msg = err_data.get("error", {}).get("message", "")
+            except Exception:
+                pass
+        if err_msg:
+            raise ValueError(f"Could not calculate driving route: {err_msg}")
+        raise ValueError(
+            "Could not calculate a driving route between these locations. "
+            "Please ensure all locations are reachable by road (e.g. within North America)."
+        )
 
     features = data.get("features", [])
     if not features:
