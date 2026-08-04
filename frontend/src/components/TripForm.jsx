@@ -13,7 +13,7 @@ const initialState = {
   co_driver: "",
 };
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "https://eldtrip-backend-bi9i.onrender.com").replace(/\/+$/, "");
 const locationFields = ["current_location", "pickup_location", "dropoff_location"];
 const createSuggestMeta = () => ({ open: false, loading: false, highlighted: -1 });
 

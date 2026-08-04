@@ -124,12 +124,15 @@ STORAGES = {
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# CORS — driven by env var; allows all origins only if explicitly set
 _cors_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")
 if _cors_origins:
     CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins.split(",") if o.strip()]
 else:
     CORS_ALLOW_ALL_ORIGINS = True
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = ["*"]
+CORS_ALLOW_METHODS = ["GET", "POST", "OPTIONS"]
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
