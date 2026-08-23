@@ -33,6 +33,8 @@ export default function App() {
   const [recentTrips, setRecentTrips] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
+  const [serverStatus, setServerStatus] = useState("checking"); // 'checking' | 'waking' | 'online' | 'offline'
+  const [serverPing, setServerPing] = useState(null);
   const canvasRefs = useRef({});
 
   const recap = useMemo(() => (plan?.log_sheets ? buildRecap(plan.log_sheets) : null), [plan]);
@@ -44,11 +46,53 @@ export default function App() {
     { label: "Rendering daily logs", icon: "📄" },
   ];
 
+  // Background server warmup & health check loop
+  const checkServerHealth = async (isInitial = false) => {
+    if (isInitial) setServerStatus("checking");
+    const startTime = performance.now();
+    try {
+      // 12-second timeout for quick probe
+      const res = await axios.get(`${API_BASE}/api/trip/health/`, { timeout: 12000 });
+      if (res.data?.status === "ok") {
+        const latency = Math.round(performance.now() - startTime);
+        setServerPing(latency);
+        setServerStatus("online");
+        return true;
+      }
+    } catch {
+      // Server is likely cold or booting up
+      setServerStatus("waking");
+    }
+    return false;
+  };
+
+  useEffect(() => {
+    let timer;
+    let attempts = 0;
+
+    const probe = async () => {
+      const isUp = await checkServerHealth(attempts === 0);
+      attempts += 1;
+      if (isUp) {
+        fetchRecentTrips();
+      } else if (attempts < 15) {
+        // Retry every 4 seconds while waking up
+        timer = setTimeout(probe, 4000);
+      } else {
+        setServerStatus("offline");
+      }
+    };
+
+    probe();
+
+    return () => clearTimeout(timer);
+  }, []);
+
   const fetchRecentTrips = async () => {
     setHistoryLoading(true);
     setHistoryError("");
     try {
-      const response = await axios.get(`${API_BASE}/api/trip/history/?limit=6`, { timeout: 15000 });
+      const response = await axios.get(`${API_BASE}/api/trip/history/?limit=6`, { timeout: 20000 });
       setRecentTrips(response.data?.results || []);
     } catch {
       setHistoryError("Could not load recent trips.");
@@ -57,23 +101,19 @@ export default function App() {
     }
   };
 
-  useEffect(() => {
-    fetchRecentTrips();
-  }, []);
-
   const handleSubmit = async (payload) => {
     setLoading(true);
     setPlanningStep(0);
     setError("");
     try {
-      // Simulate progress through steps
       const stepDuration = 600;
       
       setPlanningStep(1);
       await new Promise(r => setTimeout(r, stepDuration));
       
       setPlanningStep(2);
-      const response = await axios.post(`${API_BASE}/api/trip/plan/`, payload, { timeout: 45000 });
+      // Extended 75s timeout to comfortably absorb cold boots if triggered during submission
+      const response = await axios.post(`${API_BASE}/api/trip/plan/`, payload, { timeout: 75000 });
       
       setPlanningStep(3);
       await new Promise(r => setTimeout(r, stepDuration));
@@ -82,9 +122,15 @@ export default function App() {
       await new Promise(r => setTimeout(r, 400));
       
       setPlan(response.data);
+      setServerStatus("online");
       fetchRecentTrips();
     } catch (err) {
-      setError(err.response?.data?.detail || "Trip planning failed. Check your API and inputs.");
+      if (err.code === "ECONNABORTED" || err.message?.includes("timeout")) {
+        setError("Request timed out while server was warming up. The server should be awake now—please try again.");
+        setServerStatus("waking");
+      } else {
+        setError(err.response?.data?.detail || "Trip planning failed. Check your API and inputs.");
+      }
     } finally {
       setLoading(false);
       setPlanningStep(0);
@@ -142,11 +188,15 @@ export default function App() {
 
       {/* Planning Progress Overlay */}
       {loading && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md">
           <div className="glass-panel animate-pop rounded-2xl p-8 shadow-2xl sm:max-w-md">
-            <div className="mb-8 text-center">
+            <div className="mb-6 text-center">
               <h2 className="font-display text-2xl font-semibold text-white">Planning Your Trip</h2>
-              <p className="mt-2 text-sm text-steel-200">Hold tight—we're running through the HOS calculations...</p>
+              <p className="mt-2 text-sm text-steel-200">
+                {serverStatus === "waking"
+                  ? "Cloud backend is waking up from idle (~30-45s)..."
+                  : "Calculating routes and FMCSA HOS compliance logs..."}
+              </p>
             </div>
             <div className="space-y-3">
               {planningSteps.map((step, index) => {
@@ -169,7 +219,9 @@ export default function App() {
               })}
             </div>
             <div className="mt-6 text-center text-xs text-steel-300">
-              This may take 10–15 seconds depending on route complexity.
+              {serverStatus === "waking"
+                ? "First run takes a bit longer while Render spins up the container."
+                : "Standard computation takes 5–15 seconds."}
             </div>
           </div>
         </div>
@@ -198,13 +250,49 @@ export default function App() {
               Build FMCSA-compliant plans, visualize every stop, and export daily logs in minutes.
             </p>
           </div>
-          <div className="glass-panel animate-pop delay-4 rounded-2xl p-5 hover-soft sheen animate-glow">
-            <p className="text-xs uppercase tracking-[0.35em] text-steel-200">Status</p>
-            <p className="mt-2 text-lg font-semibold text-white">HOS Engine Online</p>
-            <div className="mt-3 flex items-center gap-3 text-sm text-steel-200">
-              <span className="h-2 w-2 rounded-full bg-accent-500"></span>
-              Live routing + logs
+          
+          {/* Dynamic Server Health & Cold-Start Status Badge */}
+          <div className="glass-panel animate-pop delay-4 rounded-2xl p-5 hover-soft sheen animate-glow min-w-[220px]">
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-[0.35em] text-steel-200">Server Status</p>
+              {serverPing && serverStatus === "online" && (
+                <span className="text-[10px] text-aqua-300 font-mono">{serverPing}ms</span>
+              )}
             </div>
+            {serverStatus === "online" && (
+              <>
+                <p className="mt-2 text-lg font-semibold text-white">HOS Engine Online</p>
+                <div className="mt-2 flex items-center gap-2 text-sm text-steel-200">
+                  <span className="h-2.5 w-2.5 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.8)]"></span>
+                  Ready for calculations
+                </div>
+              </>
+            )}
+            {(serverStatus === "waking" || serverStatus === "checking") && (
+              <>
+                <p className="mt-2 text-lg font-semibold text-amber-200 flex items-center gap-2">
+                  <span className="spinner h-4 w-4 border-amber-300"></span>
+                  Waking Server...
+                </p>
+                <div className="mt-2 flex items-center gap-2 text-xs text-amber-100/80">
+                  <span className="h-2 w-2 rounded-full bg-amber-400 animate-ping"></span>
+                  Spinning up free tier instance (~30s)
+                </div>
+              </>
+            )}
+            {serverStatus === "offline" && (
+              <>
+                <p className="mt-2 text-lg font-semibold text-red-300">Server Idle</p>
+                <button
+                  type="button"
+                  onClick={() => checkServerHealth(true)}
+                  className="mt-2 flex items-center gap-2 text-xs text-red-200 underline hover:text-white"
+                >
+                  <span className="h-2 w-2 rounded-full bg-red-500"></span>
+                  Click to wake server
+                </button>
+              </>
+            )}
           </div>
         </header>
 

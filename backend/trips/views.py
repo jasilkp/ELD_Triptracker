@@ -10,8 +10,31 @@ from .routing import build_route, geocode_suggestions
 from .serializers import TripPlanRequestSerializer
 
 
+import logging
+import time
+
+logger = logging.getLogger(__name__)
+
+
 def _api_error(detail: str, code: int):
     return Response({"detail": detail}, status=code)
+
+
+@api_view(["GET"])
+def health_check(request):
+    """
+    Ultra-fast warmup/health endpoint designed for cold-start detection and keep-alive pings.
+    Responds in <5ms without hitting the database or external APIs.
+    """
+    return Response(
+        {
+            "status": "ok",
+            "service": "eldtrip-backend",
+            "timestamp": time.time(),
+        },
+        status=status.HTTP_200_OK,
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
 
 
 class TripPlanView(APIView):
@@ -59,8 +82,8 @@ class TripPlanView(APIView):
                 total_duration_hours=route["total_duration_hours"],
                 stops_count=len(plan["stops"]),
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Could not persist trip history record: %s", exc)
 
         return Response(response, status=status.HTTP_200_OK)
 
@@ -114,6 +137,7 @@ def api_root(request):
             "status": "ok",
             "message": "ELD Trip Planner API",
             "endpoints": {
+                "health": "/api/trip/health/",
                 "plan": "/api/trip/plan/",
                 "suggest": "/api/trip/suggest/",
                 "history": "/api/trip/history/",

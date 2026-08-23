@@ -31,9 +31,11 @@ def _hour_float(dt: datetime) -> float:
     return dt.hour + (dt.minute / 60.0) + (dt.second / 3600.0)
 
 
+_tz_finder = TimezoneFinder()
+
+
 def _get_timezone(lat: float, lng: float) -> ZoneInfo:
-    finder = TimezoneFinder()
-    tz_name = finder.timezone_at(lat=lat, lng=lng)
+    tz_name = _tz_finder.timezone_at(lat=lat, lng=lng)
     if not tz_name:
         tz_name = "UTC"
     return ZoneInfo(tz_name)

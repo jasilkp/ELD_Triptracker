@@ -1,0 +1,42 @@
+name: Render Backend 24/7 Keep-Alive
+
+on:
+  schedule:
+    # Trigger every 10 minutes (Render free tier sleeps after 15 minutes of inactivity)
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render Backend
+        run: |
+          BACKEND_URL="${{ secrets.RENDER_BACKEND_URL }}"
+          if [ -z "$BACKEND_URL" ]; then
+            BACKEND_URL="https://eldtrip-backend-bi9i.onrender.com"
+          fi
+          
+          # Strip trailing slash
+          BACKEND_URL="${BACKEND_URL%/}"
+          TARGET_URL="${BACKEND_URL}/api/trip/health/"
+          
+          echo "Sending keep-alive heartbeat to $TARGET_URL..."
+          
+          # Attempt ping with up to 60s timeout for cold starts
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 "$TARGET_URL" || true)
+          echo "Initial response status: $STATUS"
+          
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ Render backend is warm and online!"
+          else
+            echo "⚠️ Initial ping returned status $STATUS (or woke up container). Retrying in 10s..."
+            sleep 10
+            STATUS_RETRY=$(curl -s -o /dev/null -w "%{http_code}" --max-time 45 "$TARGET_URL" || true)
+            echo "Retry response status: $STATUS_RETRY"
+            if [ "$STATUS_RETRY" = "200" ]; then
+              echo "✅ Render backend successfully awakened and warm!"
+            else
+              echo "ℹ️ Backend ping sent. The instance is being kept active."
+            fi
+          fi
